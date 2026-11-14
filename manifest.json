@@ -1,0 +1,26 @@
+{
+  "name": "猴丸子的雪地木屋解謎冒險",
+  "short_name": "猴丸子解謎",
+  "description": "與可愛雪地小猴子「猴丸子」一起探索雪地木屋、收集線索並解開謎題的療癒解謎小遊戲！",
+  "lang": "zh-TW",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#dceefb",
+  "theme_color": "#8c5a3c",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

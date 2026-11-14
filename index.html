@@ -1,0 +1,1672 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+    <meta name="theme-color" content="#8c5a3c">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="猴丸子解謎">
+    <meta name="description" content="與可愛雪地小猴子「猴丸子」一起探索雪地木屋、收集線索並解開謎題的療癒解謎小遊戲！">
+    <title>猴丸子的雪地木屋解謎冒險</title>
+
+    <!-- 標準 PWA Manifest 與 iOS 主畫面圖示連結 -->
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="./icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Google Fonts 圓體字型 -->
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+    <!-- 引入 FontAwesome 圖示庫 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 引入 Tone.js 音效合成器 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- 引入 Canvas Confetti 慶祝特效 -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        /* 自訂字型與溫暖木屋雪地色調 (支援安全區域 Safe Area 與動態視窗高度) */
+        body {
+            font-family: 'Zen Maru Gothic', sans-serif;
+            background: linear-gradient(180deg, #dceefb 0%, #f0f7ff 45%, #e6d5c3 100%);
+            min-height: 100dvh;
+            padding-top: max(0.75rem, env(safe-area-inset-top));
+            padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+            padding-left: max(0.75rem, env(safe-area-inset-left));
+            padding-right: max(0.75rem, env(safe-area-inset-right));
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* 飄雪背景動畫 */
+        .snowflake {
+            position: fixed;
+            top: -10px;
+            color: #ffffff;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
+            pointer-events: none;
+            z-index: 0;
+            animation: fall linear infinite;
+        }
+
+        @keyframes fall {
+            0% { transform: translateY(-10vh) rotate(0deg); opacity: 0.9; }
+            100% { transform: translateY(110vh) rotate(360deg); opacity: 0.3; }
+        }
+
+        /* 溫暖木質卡片質感 */
+        .wood-panel {
+            background-color: #fffaf0;
+            border: 4px solid #8c5a3c;
+            box-shadow: 0 10px 25px -5px rgba(107, 66, 38, 0.25), inset 0 0 0 3px #f3e5d0;
+            border-radius: 1.5rem;
+        }
+
+        .wood-header {
+            background: linear-gradient(135deg, #9c6644 0%, #7f5539 100%);
+            color: #fff8eb;
+            border-bottom: 3px solid #603813;
+        }
+
+        /* 可愛果凍按鈕樣式 (RWD 觸控最小 44px 高度優化) */
+        .btn-cozy {
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 4px 0 #603813;
+            touch-action: manipulation;
+            min-height: 44px;
+        }
+        .btn-cozy:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 #603813;
+        }
+        .btn-cozy:active:not(:disabled) {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #603813;
+        }
+        .btn-cozy:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 猴丸子頭像與互動動畫 */
+        .monkey-avatar-container {
+            position: relative;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .monkey-avatar-container:hover {
+            transform: scale(1.04);
+        }
+        .monkey-bounce {
+            animation: cuteBounce 0.6s ease;
+        }
+        .monkey-dizzy {
+            animation: cuteDizzy 0.8s ease-in-out infinite alternate;
+        }
+        @keyframes cuteBounce {
+            0%, 100% { transform: scale(1) translateY(0); }
+            30% { transform: scale(1.08, 0.92) translateY(5px); }
+            60% { transform: scale(0.95, 1.05) translateY(-10px); }
+        }
+        @keyframes cuteDizzy {
+            0% { transform: rotate(-6deg) scale(0.98); }
+            100% { transform: rotate(6deg) scale(1.02); }
+        }
+
+        /* 腮紅特效 */
+        .blush-spot {
+            position: absolute;
+            width: 24px;
+            height: 14px;
+            background: radial-gradient(circle, rgba(255, 107, 129, 0.85) 0%, rgba(255, 107, 129, 0) 70%);
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .blush-active .blush-spot {
+            opacity: 1;
+        }
+
+        /* 場景探索物件脈衝提示與高亮救援 */
+        .interactive-spot {
+            cursor: pointer;
+            transition: all 0.25s ease;
+            touch-action: manipulation;
+        }
+        .interactive-spot text {
+            pointer-events: none;
+        }
+        .interactive-spot:hover {
+            transform: scale(1.06);
+            filter: drop-shadow(0 4px 8px rgba(245, 158, 11, 0.4));
+        }
+        .clue-highlight {
+            animation: clueGlow 1.2s infinite alternate;
+            border-radius: 1rem;
+            background-color: rgba(254, 240, 138, 0.5);
+        }
+        @keyframes clueGlow {
+            0% { box-shadow: 0 0 8px 2px rgba(245, 158, 11, 0.6); transform: scale(1); }
+            100% { box-shadow: 0 0 20px 6px rgba(245, 158, 11, 1); transform: scale(1.04); }
+        }
+
+        /* 對話氣泡尾巴 (響應式適配) */
+        .speech-bubble {
+            position: relative;
+            background: #ffffff;
+            border: 3px solid #d4a373;
+            border-radius: 1.25rem;
+        }
+        @media (min-width: 1024px) {
+            .speech-bubble::before {
+                content: '';
+                position: absolute;
+                top: -14px;
+                left: 50%;
+                transform: translateX(-50%);
+                border-width: 0 12px 14px 12px;
+                border-style: solid;
+                border-color: transparent transparent #d4a373 transparent;
+            }
+            .speech-bubble::after {
+                content: '';
+                position: absolute;
+                top: -10px;
+                left: 50%;
+                transform: translateX(-50%);
+                border-width: 0 10px 12px 10px;
+                border-style: solid;
+                border-color: transparent transparent #ffffff transparent;
+            }
+        }
+    </style>
+</head>
+<body class="text-amber-950 flex flex-col justify-between sm:p-6 relative">
+
+    <!-- 離線狀態提示條 (PWA 離線偵測) -->
+    <div id="offline-banner" class="hidden max-w-5xl w-full mx-auto mb-2 bg-amber-800 text-amber-100 text-xs font-bold px-4 py-2 rounded-xl shadow flex items-center justify-center gap-2 z-20">
+        <i class="fa-solid fa-wifi-slash text-amber-300"></i>
+        <span>目前已切換至離線模式，仍可正常遊玩全部關卡與自訂題庫！</span>
+    </div>
+
+    <!-- 頂部狀態列 -->
+    <header class="max-w-5xl w-full mx-auto wood-panel overflow-hidden mb-3 sm:mb-4 z-10">
+        <div class="wood-header px-3.5 sm:px-5 py-2.5 sm:py-3 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+                <span class="text-xl sm:text-2xl">🐒❄️</span>
+                <h1 class="text-base sm:text-xl font-black tracking-wide leading-tight">猴丸子的雪地木屋解謎冒險</h1>
+            </div>
+
+            <!-- 關卡進度條 -->
+            <div class="flex items-center gap-1.5 sm:gap-2 bg-amber-950/40 px-2.5 sm:px-3 py-1.5 rounded-full order-3 sm:order-2 w-full sm:w-auto justify-center">
+                <span id="current-theme-tag" class="text-[11px] sm:text-xs font-black bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full truncate max-w-[130px] sm:max-w-none">雪地經典篇</span>
+                <span class="text-xs sm:text-sm font-bold text-amber-100">進度：</span>
+                <div class="flex gap-1.5" id="progress-dots">
+                    <span class="w-6 h-6 rounded-full bg-amber-400 text-amber-950 font-black text-xs flex items-center justify-center shadow">1</span>
+                    <span class="w-6 h-6 rounded-full bg-amber-800/60 text-amber-200 font-bold text-xs flex items-center justify-center">2</span>
+                    <span class="w-6 h-6 rounded-full bg-amber-800/60 text-amber-200 font-bold text-xs flex items-center justify-center">3</span>
+                </div>
+            </div>
+
+            <!-- PWA 安裝、換題重玩與音效切換按鈕 -->
+            <div class="flex items-center gap-1.5 sm:gap-2 order-2 sm:order-3 ml-auto sm:ml-0">
+                <button id="btn-install-pwa" onclick="installPWA()" class="hidden bg-emerald-400 hover:bg-emerald-300 text-emerald-950 px-2.5 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-black shadow transition items-center gap-1.5 border border-emerald-800" title="安裝到桌面或主畫面">
+                    <i class="fa-solid fa-download"></i>
+                    <span>安裝 App</span>
+                </button>
+                <button onclick="openSetupModal()" class="bg-amber-300 hover:bg-amber-200 text-amber-950 px-2.5 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-black shadow transition flex items-center gap-1.5 border border-amber-700" title="切換題目或重新開始">
+                    <i class="fa-solid fa-shuffle text-amber-800"></i>
+                    <span>換題重玩</span>
+                </button>
+                <button id="btn-sound" onclick="toggleSound()" class="bg-amber-100 hover:bg-white text-amber-900 px-2.5 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-bold shadow transition flex items-center gap-1.5" title="切換音效">
+                    <i id="sound-icon" class="fa-solid fa-volume-high text-amber-600"></i>
+                    <span class="hidden md:inline">音效開啟</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主遊戲區：RWD 響應式柵格系統 (手機單欄 / 平板雙欄 / 桌機 4:8 黃金比例) -->
+    <main class="max-w-5xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 z-10 flex-grow">
+
+        <!-- 左側欄：可愛角色互動區 + 線索筆記本 -->
+        <aside class="lg:col-span-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
+
+            <!-- 1. 可愛角色互動區 -->
+            <div class="wood-panel p-3.5 sm:p-4 flex flex-col items-center text-center relative">
+                <div class="w-full flex justify-between items-center mb-2">
+                    <span class="bg-rose-100 text-rose-700 text-xs font-bold px-2.5 py-1 rounded-full border border-rose-300">
+                        <i class="fa-solid fa-heart mr-1"></i>嚮導：猴丸子
+                    </span>
+                    <span id="monkey-mood-badge" class="bg-sky-100 text-sky-700 text-xs font-bold px-2.5 py-1 rounded-full border border-sky-300">
+                        心情：元氣滿滿 ✨
+                    </span>
+                </div>
+
+                <div class="flex flex-row lg:flex-col items-center gap-3 w-full">
+                    <!-- 猴丸子頭像點擊互動區 -->
+                    <div id="monkey-avatar-box" onclick="petMonkey()" class="monkey-avatar-container cursor-pointer shrink-0 my-1" title="點點看猴丸子！">
+                        <div class="w-24 h-24 sm:w-32 sm:h-32 lg:w-44 lg:h-44 rounded-full overflow-hidden border-4 border-amber-400 shadow-lg bg-sky-100 relative">
+                            <img id="monkey-photo" src="./icons/icon-512.png" alt="可愛猴丸子" class="w-full h-full object-cover"
+                                 onerror="this.style.display='none'; document.getElementById('monkey-svg-fallback').style.display='block';">
+                            <svg id="monkey-svg-fallback" style="display:none;" viewBox="0 0 200 200" class="w-full h-full">
+                                <defs>
+                                    <radialGradient id="snowBg" cx="50%" cy="40%" r="60%">
+                                        <stop offset="0%" stop-color="#e0f2fe"/>
+                                        <stop offset="100%" stop-color="#bae6fd"/>
+                                    </radialGradient>
+                                    <radialGradient id="cheekGrad" cx="50%" cy="50%" r="50%">
+                                        <stop offset="0%" stop-color="#ff758f" stop-opacity="0.85"/>
+                                        <stop offset="100%" stop-color="#ff758f" stop-opacity="0"/>
+                                    </radialGradient>
+                                </defs>
+                                <rect width="200" height="200" fill="url(#snowBg)"/>
+                                <ellipse cx="100" cy="185" rx="110" ry="30" fill="#ffffff"/>
+                                <circle cx="42" cy="100" r="22" fill="#a47551" stroke="#7f5539" stroke-width="3"/>
+                                <circle cx="42" cy="100" r="12" fill="#f4a261"/>
+                                <circle cx="158" cy="100" r="22" fill="#a47551" stroke="#7f5539" stroke-width="3"/>
+                                <circle cx="158" cy="100" r="12" fill="#f4a261"/>
+                                <path d="M90 36 Q100 15 108 35 Q118 18 116 40" fill="#a47551" stroke="#7f5539" stroke-width="3" stroke-linecap="round"/>
+                                <ellipse cx="100" cy="162" rx="52" ry="38" fill="#a47551" stroke="#7f5539" stroke-width="3"/>
+                                <ellipse cx="100" cy="166" rx="32" ry="26" fill="#faedcd"/>
+                                <circle cx="100" cy="96" r="58" fill="#a47551" stroke="#7f5539" stroke-width="3"/>
+                                <path d="M56 96 C56 68, 92 68, 100 80 C108 68, 144 68, 144 96 C144 130, 122 142, 100 142 C78 142, 56 130, 56 96 Z" fill="#ffd6ba"/>
+                                <circle cx="68" cy="110" r="18" fill="url(#cheekGrad)"/>
+                                <circle cx="132" cy="110" r="18" fill="url(#cheekGrad)"/>
+                                <circle cx="80" cy="92" r="11" fill="#3d2314"/>
+                                <circle cx="77" cy="88" r="4" fill="#ffffff"/>
+                                <circle cx="120" cy="92" r="11" fill="#3d2314"/>
+                                <circle cx="117" cy="88" r="4" fill="#ffffff"/>
+                                <ellipse cx="100" cy="103" rx="6" ry="4" fill="#f28482"/>
+                                <path d="M88 114 Q100 125 112 114" stroke="#6d3b2e" stroke-width="3" fill="none" stroke-linecap="round"/>
+                            </svg>
+
+                            <div class="blush-spot" style="top: 56%; left: 16%;"></div>
+                            <div class="blush-spot" style="top: 56%; right: 16%;"></div>
+                        </div>
+                        <span id="monkey-reaction-icon" class="absolute -top-1 -right-1 bg-white border-2 border-amber-400 rounded-full w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center text-sm sm:text-lg shadow-md">
+                            ❄️
+                        </span>
+                    </div>
+
+                    <div class="flex-grow flex flex-col items-center w-full">
+                        <p class="text-[11px] text-amber-700/80 mb-1.5">（點擊猴丸子可以摸摸牠喔！）</p>
+                        <div class="speech-bubble w-full p-2.5 sm:p-3 text-left shadow-sm min-h-[72px] sm:min-h-[84px] flex items-center">
+                            <p id="monkey-dialogue" class="text-xs sm:text-sm font-bold text-amber-950 leading-relaxed">
+                                「吱吱！歡迎來到雪地溫暖木屋！門鎖好像被凍住了，我們一起在雪地裡找找線索吧！」
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 線索筆記本區塊 -->
+            <div class="wood-panel p-3.5 sm:p-4 flex-grow flex flex-col">
+                <div class="flex items-center justify-between border-b-2 border-amber-200 pb-2 mb-3">
+                    <h2 class="font-black text-base text-amber-900 flex items-center gap-2">
+                        <i class="fa-solid fa-book-open text-amber-600"></i>
+                        線索筆記本
+                    </h2>
+                    <span id="clue-counter" class="text-xs font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">
+                        本關 0 / 2
+                    </span>
+                </div>
+
+                <ul id="clue-list" class="space-y-2 text-sm flex-grow">
+                    <li class="text-amber-700/60 italic text-center py-4 sm:py-6 bg-amber-100/50 rounded-xl border border-dashed border-amber-300 text-xs sm:text-sm">
+                        還沒發現線索呢～<br>試著點擊場景中的可疑物件吧！
+                    </li>
+                </ul>
+            </div>
+
+        </aside>
+
+        <!-- 右側欄：關卡場景探索 + 謎題解鎖 + 卡關救援系統 -->
+        <section class="lg:col-span-8 flex flex-col gap-4">
+
+            <!-- 關卡主容器 -->
+            <div id="game-stage-container" class="wood-panel p-4 sm:p-6 flex-grow flex flex-col justify-between relative">
+
+                <!-- 切換新題目橫幅通知 -->
+                <div id="new-theme-banner" class="hidden mb-3 bg-emerald-100 border-2 border-emerald-500 text-emerald-900 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black flex items-center justify-between shadow-xs">
+                    <span id="new-theme-banner-text">✨ 已為你切換全新謎題套組！</span>
+                    <button onclick="this.parentElement.classList.add('hidden')" class="text-emerald-700 hover:text-emerald-950"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <!-- 關卡標題與卡關求救按鈕 -->
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b-2 border-amber-200 pb-3 mb-4">
+                    <div>
+                        <span id="stage-badge" class="inline-block bg-amber-600 text-white text-xs font-bold px-2.5 py-0.5 rounded-md mb-1">
+                            STAGE 01
+                        </span>
+                        <h2 id="stage-title" class="text-lg sm:text-2xl font-black text-amber-950">
+                            雪地木屋前的足跡密碼
+                        </h2>
+                    </div>
+
+                    <!-- 卡關救援按鈕 -->
+                    <button id="btn-unstuck" onclick="triggerUnstuckHelp()" class="btn-cozy bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-amber-950 font-black px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-2 border-2 border-amber-700">
+                        <i class="fa-solid fa-life-ring text-red-600 animate-spin" style="animation-duration: 6s;"></i>
+                        <span>卡關求救</span>
+                        <span id="hint-stage-badge" class="bg-amber-900 text-amber-100 text-xs px-1.5 py-0.5 rounded-md">0/3</span>
+                    </button>
+                </div>
+
+                <!-- 階段提示展示橫幅 -->
+                <div id="hint-banner" class="hidden mb-4 bg-amber-100 border-2 border-amber-500 rounded-xl p-3.5 shadow-inner transition-all">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-amber-500 text-white rounded-full w-8 h-8 flex items-center justify-center shrink-0 mt-0.5 font-black">
+                            <i class="fa-solid fa-lightbulb"></i>
+                        </div>
+                        <div class="flex-grow">
+                            <div class="flex items-center justify-between mb-1">
+                                <span id="hint-level-title" class="font-black text-amber-900 text-xs sm:text-sm">階段一：方向引導</span>
+                                <span class="text-[11px] font-bold text-amber-700">猴丸子救援小隊</span>
+                            </div>
+                            <p id="hint-text" class="text-xs sm:text-sm text-amber-950 font-medium leading-relaxed"></p>
+                            <div id="hint-skip-container" class="hidden mt-3 pt-2.5 border-t border-amber-300 flex justify-end">
+                                <button onclick="monkeyAutoSolve()" class="btn-cozy bg-rose-500 hover:bg-rose-400 text-white font-black px-4 py-2 rounded-xl text-xs sm:text-sm border-2 border-rose-800 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                    請猴丸子幫忙解開！
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 互動探索場景畫布 -->
+                <div class="mb-4 rounded-2xl overflow-hidden border-3 border-amber-700 shadow-inner bg-sky-100 relative">
+                    <div id="scene-canvas" class="w-full"></div>
+                    <div class="bg-amber-900/90 text-amber-100 text-[11px] sm:text-xs font-bold px-3 py-1.5 flex items-center justify-between">
+                        <span><i class="fa-solid fa-hand-pointer mr-1 text-amber-300"></i>點擊上方圖畫中的可疑物件來收集線索</span>
+                        <span id="wrong-attempts-display" class="hidden text-rose-300">已嘗試錯誤 <span id="wrong-count">0</span> 次</span>
+                    </div>
+                </div>
+
+                <!-- 謎題互動輸入區 -->
+                <div class="bg-amber-100/80 border-2 border-amber-300 rounded-2xl p-3.5 sm:p-4">
+                    <p id="puzzle-question" class="font-bold text-amber-950 text-sm sm:text-base mb-3 text-center">
+                        請輸入木屋大門的 3 位數足跡密碼：
+                    </p>
+                    <div id="puzzle-controls" class="flex flex-col items-center justify-center gap-3"></div>
+                </div>
+
+            </div>
+
+            <!-- 過關結算勝利畫面 -->
+            <div id="victory-screen" class="hidden wood-panel p-6 sm:p-8 text-center flex-grow flex flex-col items-center justify-center">
+                <div class="w-28 h-28 rounded-full overflow-hidden border-4 border-amber-400 shadow-xl mb-4 animate-bounce bg-amber-200 flex items-center justify-center">
+                    <img src="./icons/icon-512.png" alt="猴丸子歡呼" class="w-full h-full object-cover"
+                         onerror="this.style.display='none'; document.getElementById('victory-svg').style.display='flex';">
+                    <div id="victory-svg" style="display:none;" class="w-full h-full items-center justify-center text-5xl">🐒🎉</div>
+                </div>
+                <span class="bg-amber-500 text-white text-xs font-black px-3 py-1 rounded-full mb-2">ALL CLEAR! 完美通關</span>
+                <h2 class="text-2xl sm:text-3xl font-black text-amber-950 mb-2">太棒了！暖爐點燃、松果茶泡好囉！</h2>
+                <p class="text-amber-800 font-medium max-w-md mx-auto mb-6 leading-relaxed">
+                    在你的聰明才智與猴丸子的努力下，雪地木屋變得超級溫暖！猴丸子端出了熱騰騰的松果可可要與你一起分享～
+                </p>
+
+                <div class="grid grid-cols-2 gap-3 w-full max-w-sm mb-6">
+                    <div class="bg-amber-100 border-2 border-amber-300 rounded-xl p-3">
+                        <div class="text-xs text-amber-700 font-bold">收集線索總數</div>
+                        <div id="stat-clues" class="text-xl font-black text-amber-950">6 / 6</div>
+                    </div>
+                    <div class="bg-amber-100 border-2 border-amber-300 rounded-xl p-3">
+                        <div class="text-xs text-amber-700 font-bold">求救提示次數</div>
+                        <div id="stat-hints" class="text-xl font-black text-amber-950">0 次</div>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-center gap-3">
+                    <button onclick="quickRandomRestart()" class="btn-cozy bg-emerald-500 hover:bg-emerald-400 text-white font-black px-5 py-3 rounded-xl text-base border-2 border-emerald-800 flex items-center gap-2">
+                        <i class="fa-solid fa-dice"></i>
+                        隨機切換新題目重玩
+                    </button>
+                    <button onclick="openSetupModal()" class="btn-cozy bg-amber-400 hover:bg-amber-300 text-amber-950 font-black px-5 py-3 rounded-xl text-base border-2 border-amber-800 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders"></i>
+                        自選題組 / 自訂題目
+                    </button>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- 頁尾 -->
+    <footer class="max-w-5xl w-full mx-auto text-center text-xs text-amber-900/70 font-bold mt-4 z-10">
+        ❄️ 猴丸子的雪地木屋解謎冒險 — 支援 PWA 離線遊玩與 RWD 全裝置自適應！
+    </footer>
+
+    <!-- 自訂彈出訊息框 -->
+    <div id="toast-modal" class="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+        <div class="wood-panel max-w-sm w-full p-5 text-center transform transition-all scale-100">
+            <div id="toast-icon" class="text-4xl mb-2">🔍</div>
+            <h3 id="toast-title" class="text-lg font-black text-amber-950 mb-1">發現新線索！</h3>
+            <p id="toast-desc" class="text-sm text-amber-800 font-medium mb-4 leading-relaxed"></p>
+            <button onclick="closeToast()" class="btn-cozy bg-amber-500 hover:bg-amber-400 text-amber-950 font-black px-6 py-2 rounded-xl text-sm border-2 border-amber-800 w-full">
+                記在筆記本裡！
+            </button>
+        </div>
+    </div>
+
+    <!-- 題目設定與重玩選擇器彈窗 -->
+    <div id="setup-modal" class="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 hidden items-center justify-center p-3 sm:p-5 overflow-y-auto">
+        <div class="wood-panel max-w-2xl w-full p-5 sm:p-6 my-auto relative">
+            <div class="flex items-center justify-between border-b-2 border-amber-200 pb-3 mb-4">
+                <h3 class="text-xl font-black text-amber-950 flex items-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-amber-600"></i>
+                    選擇冒險題組 / 重新開始設定
+                </h3>
+                <button onclick="closeSetupModal()" class="w-8 h-8 rounded-full bg-amber-200 hover:bg-amber-300 text-amber-900 font-black flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="flex gap-2 mb-4 bg-amber-100 p-1.5 rounded-xl border border-amber-300">
+                <button id="tab-preset" onclick="switchSetupTab('preset')" class="flex-1 py-2 px-3 rounded-lg font-black text-sm bg-amber-500 text-amber-950 shadow transition">
+                    📚 精選主題題庫
+                </button>
+                <button id="tab-custom" onclick="switchSetupTab('custom')" class="flex-1 py-2 px-3 rounded-lg font-black text-sm text-amber-800 hover:bg-amber-200/70 transition">
+                    🛠️ 自訂題目小工坊
+                </button>
+            </div>
+
+            <!-- 分頁 1：精選主題題庫 -->
+            <div id="panel-preset" class="space-y-3">
+                <button onclick="startWithPreset('random')" class="w-full text-left p-3.5 rounded-xl bg-gradient-to-r from-amber-200 to-orange-200 hover:from-amber-300 hover:to-orange-300 border-2 border-amber-600 transition flex items-center justify-between shadow-xs">
+                    <div class="flex items-center gap-3">
+                        <span class="text-3xl">🎲</span>
+                        <div>
+                            <div class="font-black text-amber-950 text-base">隨機驚喜出題（自動避開上一局）</div>
+                            <div class="text-xs text-amber-800 font-bold">由猴丸子隨機抽取不同主題的謎題挑戰！</div>
+                        </div>
+                    </div>
+                    <span class="bg-amber-900 text-amber-100 text-xs font-black px-3 py-1 rounded-full shrink-0">推薦</span>
+                </button>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                    <div onclick="startWithPreset('A')" class="cursor-pointer p-3.5 rounded-xl bg-white hover:bg-sky-50 border-2 border-amber-400 hover:border-sky-500 transition flex flex-col justify-between shadow-xs">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-2xl">❄️</span>
+                                <span class="text-[11px] font-black bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full">套組 A</span>
+                            </div>
+                            <h4 class="font-black text-amber-950 text-sm mb-1">雪地經典篇</h4>
+                            <p class="text-xs text-amber-700 leading-relaxed">動物足跡密碼、木屋暖爐升溫、四季循環點心盒。</p>
+                        </div>
+                        <div class="mt-3 text-center bg-amber-100 text-amber-900 font-black text-xs py-1.5 rounded-lg">選擇此題組</div>
+                    </div>
+
+                    <div onclick="startWithPreset('B')" class="cursor-pointer p-3.5 rounded-xl bg-white hover:bg-indigo-50 border-2 border-amber-400 hover:border-indigo-500 transition flex flex-col justify-between shadow-xs">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-2xl">🌌</span>
+                                <span class="text-[11px] font-black bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full">套組 B</span>
+                            </div>
+                            <h4 class="font-black text-amber-950 text-sm mb-1">星空溫泉篇</h4>
+                            <p class="text-xs text-amber-700 leading-relaxed">觀星台星座密碼、露天溫泉調溫、月相盈虧寶盒。</p>
+                        </div>
+                        <div class="mt-3 text-center bg-amber-100 text-amber-900 font-black text-xs py-1.5 rounded-lg">選擇此題組</div>
+                    </div>
+
+                    <div onclick="startWithPreset('C')" class="cursor-pointer p-3.5 rounded-xl bg-white hover:bg-rose-50 border-2 border-amber-400 hover:border-rose-500 transition flex flex-col justify-between shadow-xs">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-2xl">🥧</span>
+                                <span class="text-[11px] font-black bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full">套組 C</span>
+                            </div>
+                            <h4 class="font-black text-amber-950 text-sm mb-1">森林烘焙篇</h4>
+                            <p class="text-xs text-amber-700 leading-relaxed">甜點食譜比例鎖、酵母發酵箱控溫、水果塔裝飾順序。</p>
+                        </div>
+                        <div class="mt-3 text-center bg-amber-100 text-amber-900 font-black text-xs py-1.5 rounded-lg">選擇此題組</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分頁 2：自訂題目小工坊 -->
+            <div id="panel-custom" class="hidden space-y-3 text-left">
+                <p class="text-xs text-amber-800 font-bold bg-amber-100/80 p-2.5 rounded-lg border border-amber-300">
+                    💡 家長、老師或玩家可以自訂三關謎題數值，系統會自動生成對應的場景線索與三階段求救提示！
+                </p>
+
+                <div class="bg-white p-3 rounded-xl border-2 border-amber-300">
+                    <div class="font-black text-sm text-amber-950 mb-2">第一關：3 位數密碼鎖設定</div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="block text-xs font-bold text-amber-800 mb-1">正確 3 位數密碼（例如 841）</label>
+                            <input type="text" id="custom-code" maxlength="3" value="841" class="w-full px-3 py-1.5 rounded-lg border-2 border-amber-400 font-black text-amber-950">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-amber-800 mb-1">線索提示描述</label>
+                            <input type="text" id="custom-code-hint" value="松果 8 顆、橡實 4 顆、栗子 1 顆，依序排列！" class="w-full px-3 py-1.5 rounded-lg border-2 border-amber-400 text-xs font-bold text-amber-950">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-3 rounded-xl border-2 border-amber-300">
+                    <div class="font-black text-sm text-amber-950 mb-2">第二關：目標溫度設定（15°C ～ 45°C）</div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="block text-xs font-bold text-amber-800 mb-1">目標溫度（°C）</label>
+                            <select id="custom-temp" class="w-full px-3 py-1.5 rounded-lg border-2 border-amber-400 font-black text-amber-950">
+                                <option value="15">15°C</option>
+                                <option value="20">20°C</option>
+                                <option value="25">25°C</option>
+                                <option value="30" selected>30°C</option>
+                                <option value="35">35°C</option>
+                                <option value="40">40°C</option>
+                                <option value="45">45°C</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-amber-800 mb-1">溫度計與熱源提示</label>
+                            <input type="text" id="custom-temp-hint" value="目前室溫 10°C，加上暖暖包提升 20°C！" class="w-full px-3 py-1.5 rounded-lg border-2 border-amber-400 text-xs font-bold text-amber-950">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-3 rounded-xl border-2 border-amber-300">
+                    <div class="font-black text-sm text-amber-950 mb-2">第三關：4 格圖案密碼順序設定</div>
+                    <div class="grid grid-cols-4 gap-2">
+                        <div>
+                            <label class="block text-[11px] font-bold text-amber-800 mb-1">第 1 格</label>
+                            <select id="custom-seq-0" class="w-full p-1.5 rounded-lg border-2 border-amber-400 text-lg text-center">
+                                <option value="🍎" selected>🍎 蘋果</option>
+                                <option value="🍌">🍌 香蕉</option>
+                                <option value="🍇">🍇 葡萄</option>
+                                <option value="🍑">🍑 水蜜桃</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-amber-800 mb-1">第 2 格</label>
+                            <select id="custom-seq-1" class="w-full p-1.5 rounded-lg border-2 border-amber-400 text-lg text-center">
+                                <option value="🍎">🍎 蘋果</option>
+                                <option value="🍌" selected>🍌 香蕉</option>
+                                <option value="🍇">🍇 葡萄</option>
+                                <option value="🍑">🍑 水蜜桃</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-amber-800 mb-1">第 3 格</label>
+                            <select id="custom-seq-2" class="w-full p-1.5 rounded-lg border-2 border-amber-400 text-lg text-center">
+                                <option value="🍎">🍎 蘋果</option>
+                                <option value="🍌">🍌 香蕉</option>
+                                <option value="🍇" selected>🍇 葡萄</option>
+                                <option value="🍑">🍑 水蜜桃</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-amber-800 mb-1">第 4 格</label>
+                            <select id="custom-seq-3" class="w-full p-1.5 rounded-lg border-2 border-amber-400 text-lg text-center">
+                                <option value="🍎">🍎 蘋果</option>
+                                <option value="🍌">🍌 香蕉</option>
+                                <option value="🍇">🍇 葡萄</option>
+                                <option value="🍑" selected>🍑 水蜜桃</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="applyCustomPuzzle()" class="btn-cozy w-full bg-emerald-500 hover:bg-emerald-400 text-white font-black py-3 rounded-xl border-2 border-emerald-800 text-base flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-play"></i>
+                    套用自訂題目並開始遊戲！
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           標準 PWA 註冊與安裝事件處理 (連接外部 ./sw.js 與 ./manifest.json)
+           ========================================================================== */
+        let deferredPrompt = null;
+
+        function initPWA() {
+            // 1. 註冊獨立的 Service Worker (./sw.js)
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((reg) => console.log('Service Worker 註冊成功:', reg.scope))
+                    .catch((err) => console.warn('Service Worker 註冊略過:', err));
+            }
+
+            // 2. 監聽瀏覽器安裝提示事件 (beforeinstallprompt)
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                const installBtn = document.getElementById('btn-install-pwa');
+                if (installBtn) {
+                    installBtn.classList.remove('hidden');
+                    installBtn.classList.add('flex');
+                }
+            });
+
+            window.addEventListener('appinstalled', () => {
+                deferredPrompt = null;
+                const installBtn = document.getElementById('btn-install-pwa');
+                if (installBtn) {
+                    installBtn.classList.add('hidden');
+                    installBtn.classList.remove('flex');
+                }
+                setMonkeyState('happy', '成功安裝 App 🎉', '📱', "「吱吱！已經把猴丸子放到你的主畫面囉！隨時隨地都能一起解謎！」");
+            });
+
+            // 3. 網路連線/離線狀態即時監聽
+            function updateOnlineStatus() {
+                const offlineBanner = document.getElementById('offline-banner');
+                if (!offlineBanner) return;
+                if (navigator.onLine) {
+                    offlineBanner.classList.add('hidden');
+                } else {
+                    offlineBanner.classList.remove('hidden');
+                }
+            }
+            window.addEventListener('online', updateOnlineStatus);
+            window.addEventListener('offline', updateOnlineStatus);
+            updateOnlineStatus();
+        }
+
+        async function installPWA() {
+            playSound('click');
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                deferredPrompt = null;
+                const installBtn = document.getElementById('btn-install-pwa');
+                if (installBtn) {
+                    installBtn.classList.add('hidden');
+                    installBtn.classList.remove('flex');
+                }
+            }
+        }
+
+        /* ==========================================================================
+           音效系統 (Tone.js)
+           ========================================================================== */
+        let soundEnabled = true;
+        let synth = null;
+
+        function initAudio() {
+            if (!synth && typeof Tone !== 'undefined') {
+                synth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "triangle" },
+                    envelope: { attack: 0.02, decay: 0.1, sustain: 0.1, release: 0.4 }
+                }).toDestination();
+                synth.volume.value = -8;
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                const now = Tone.now();
+                if (type === 'click') synth.triggerAttackRelease("C5", "16n", now);
+                else if (type === 'clue') synth.triggerAttackRelease(["E5", "G5", "C6"], "16n", now);
+                else if (type === 'pet') {
+                    synth.triggerAttackRelease("G5", "32n", now);
+                    synth.triggerAttackRelease("B5", "16n", now + 0.08);
+                } else if (type === 'wrong') synth.triggerAttackRelease(["Eb4", "D4"], "8n", now);
+                else if (type === 'hint') synth.triggerAttackRelease(["A4", "C#5", "E5"], "8n", now);
+                else if (type === 'success') synth.triggerAttackRelease(["C5", "E5", "G5", "C6"], "8n", now);
+            } catch (e) {
+                console.warn("音效播放略過:", e);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            const btnText = document.querySelector('#btn-sound span');
+            if (soundEnabled) {
+                icon.className = "fa-solid fa-volume-high text-amber-600";
+                if (btnText) btnText.textContent = "音效開啟";
+                playSound('click');
+            } else {
+                icon.className = "fa-solid fa-volume-xmark text-gray-400";
+                if (btnText) btnText.textContent = "音效靜音";
+            }
+        }
+
+        /* ==========================================================================
+           多套題庫資料庫 (套組 A / 套組 B / 套組 C)
+           ========================================================================== */
+        const PUZZLE_PACKS = {
+            A: {
+                id: 'A',
+                name: '套組 A：雪地經典篇',
+                stages: [
+                    {
+                        id: 1,
+                        badge: "STAGE 01",
+                        title: "雪地木屋前的足跡密碼",
+                        introDialogue: "「吱吱！木屋大門的密碼鎖被雪蓋住了！快點擊門前的『雪地足跡』和『木牌告示』看看有什麼線索吧！」",
+                        question: "根據腳印數量與木牌提示，輸入 3 位數門鎖密碼：",
+                        clues: [
+                            { id: "c1_1", spotId: "spot-footprints", title: "雪地裡的動物腳印", icon: "🐾", detail: "雪地上清楚印著：2 個兔子腳印、5 個小鳥爪印、3 個小熊掌印。" },
+                            { id: "c1_2", spotId: "spot-signpost", title: "門旁的木頭告示牌", icon: "🪧", detail: "木牌寫著密碼順序：「小鳥 ➔ 小熊 ➔ 兔子」。" }
+                        ],
+                        hints: [
+                            "【方向引導】先點擊雪地上的「腳印群」和右邊的「木頭告示牌」收集兩條線索，記下每種動物的腳印數量喔！",
+                            "【關鍵線索高亮】我幫你把場景裡的線索標亮了！木牌要求順序是「小鳥 ➔ 小熊 ➔ 兔子」，對應腳印數量分別是 5、3、2！",
+                            "【終極救援】密碼就是小鳥(5)、小熊(3)、兔子(2)，組合起來是「532」！也可以直接點下方按鈕讓我幫你按密碼鎖喔！"
+                        ],
+                        answer: "532",
+                        renderScene: () => `
+                            <svg viewBox="0 0 600 230" class="w-full h-auto block">
+                                <rect width="600" height="230" fill="#d8eefe"/>
+                                <polygon points="0,160 110,60 230,160" fill="#b8d8f8"/>
+                                <polygon points="410,160 520,50 600,140 600,160" fill="#a2cffe"/>
+                                <rect y="145" width="600" height="85" fill="#ffffff"/>
+                                <path d="M0 155 Q150 140 300 155 T600 150 L600 230 L0 230 Z" fill="#f1f8ff"/>
+                                <rect x="200" y="65" width="200" height="95" fill="#9c6644" stroke="#5e3a24" stroke-width="3"/>
+                                <polygon points="180,70 300,15 420,70" fill="#ffffff" stroke="#90caf9" stroke-width="3"/>
+                                <polygon points="190,68 300,22 410,68" fill="#7f5539"/>
+                                <path d="M182,70 Q240,55 300,20 Q360,55 418,70" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round"/>
+                                <rect x="275" y="95" width="50" height="65" rx="4" fill="#6f4518" stroke="#432818" stroke-width="3"/>
+                                <rect x="310" y="122" width="10" height="14" rx="2" fill="#fbbf24" stroke="#78350f" stroke-width="1.5"/>
+                                <rect x="220" y="95" width="34" height="34" rx="4" fill="#fef08a" stroke="#5e3a24" stroke-width="3"/>
+                                <g id="spot-footprints" class="interactive-spot" onclick="inspectClue('c1_1')">
+                                    <rect x="45" y="160" width="220" height="58" rx="14" fill="#e0f2fe" stroke="#38bdf8" stroke-width="2" stroke-dasharray="5,4"/>
+                                    <text x="155" y="177" text-anchor="middle" font-size="11" font-weight="bold" fill="#0369a1">🔍 點擊查看雪地足跡</text>
+                                    <text x="62" y="203" font-size="18">🐰🐾×2</text>
+                                    <text x="132" y="203" font-size="18">🐦🐾×5</text>
+                                    <text x="202" y="203" font-size="18">🐻🐾×3</text>
+                                </g>
+                                <g id="spot-signpost" class="interactive-spot" onclick="inspectClue('c1_2')">
+                                    <rect x="462" y="145" width="12" height="55" fill="#6f4518"/>
+                                    <rect x="415" y="102" width="108" height="52" rx="8" fill="#ddb892" stroke="#7f5539" stroke-width="3"/>
+                                    <text x="469" y="122" text-anchor="middle" font-size="11" font-weight="bold" fill="#432818">📜 密碼順序</text>
+                                    <text x="469" y="141" text-anchor="middle" font-size="14" font-weight="bold" fill="#7f5539">🐦 ➔ 🐻 ➔ 🐰</text>
+                                </g>
+                            </svg>
+                        `
+                    },
+                    {
+                        id: 2,
+                        badge: "STAGE 02",
+                        title: "木屋暖爐的溫度平衡",
+                        introDialogue: "「呼～進到屋子裡了，但暖爐熄火好冷喔！看看『牆上溫度計』和『壁爐旁的柴火籃』，幫暖爐設定剛剛好的溫度吧！」",
+                        question: "調整暖爐溫控旋鈕至正確度數（°C）：",
+                        clues: [
+                            { id: "c2_1", spotId: "spot-thermometer", title: "牆上的復古溫度計", icon: "🌡️", detail: "目前室內溫度是 5°C，紅色標記寫著：「最舒適的木屋溫度需要再升高 20°C」。" },
+                            { id: "c2_2", spotId: "spot-firewood", title: "壁爐旁的松木柴火籃", icon: "🪵", detail: "紙條備註：「每根松木可提供 5°C 熱力，籃子裡剛好有 4 根松木（5 + 20 = 25°C）」。" }
+                        ],
+                        hints: [
+                            "【方向引導】屋子裡現在只有 5°C，點點看牆上的「溫度計」和地上的「柴火籃」，算算看目標溫度是多少度！",
+                            "【關鍵線索高亮】場景中的溫度計與柴火籃已標亮！現在 5°C 加上柴火提供的 20°C，目標溫度是 25°C 喔！",
+                            "【終極救援】將下方按鈕調到「25°C」再按下確認即可！也可以直接請猴丸子幫你轉動旋鈕！"
+                        ],
+                        answer: 25,
+                        renderScene: () => `
+                            <svg viewBox="0 0 600 230" class="w-full h-auto block">
+                                <rect width="600" height="175" fill="#f3d5b5"/>
+                                <rect y="175" width="600" height="55" fill="#b08968"/>
+                                <line x1="0" y1="175" x2="600" y2="175" stroke="#7f5539" stroke-width="4"/>
+                                <rect x="210" y="55" width="180" height="120" rx="8" fill="#bc4749" stroke="#6a040f" stroke-width="3"/>
+                                <rect x="198" y="45" width="204" height="16" rx="4" fill="#7f5539" stroke="#432818" stroke-width="2"/>
+                                <path d="M250 175 L250 115 Q300 85 350 115 L350 175 Z" fill="#2b2d42"/>
+                                <text x="300" y="148" text-anchor="middle" font-size="26">🪵💤</text>
+                                <g id="spot-thermometer" class="interactive-spot" onclick="inspectClue('c2_1')">
+                                    <rect x="75" y="42" width="84" height="110" rx="12" fill="#fffaf0" stroke="#8c5a3c" stroke-width="3"/>
+                                    <rect x="111" y="56" width="12" height="65" rx="6" fill="#e2e8f0" stroke="#64748b" stroke-width="2"/>
+                                    <rect x="114" y="98" width="6" height="23" rx="3" fill="#ef4444"/>
+                                    <circle cx="117" cy="124" r="10" fill="#ef4444"/>
+                                    <text x="117" y="146" text-anchor="middle" font-size="11" font-weight="bold" fill="#7f5539">🌡️ 5°C (+20)</text>
+                                </g>
+                                <g id="spot-firewood" class="interactive-spot" onclick="inspectClue('c2_2')">
+                                    <path d="M430 140 L535 140 L520 185 L445 185 Z" fill="#9c6644" stroke="#5e3a24" stroke-width="3"/>
+                                    <circle cx="458" cy="135" r="10" fill="#ddb892" stroke="#7f5539" stroke-width="2"/>
+                                    <circle cx="482" cy="135" r="10" fill="#ddb892" stroke="#7f5539" stroke-width="2"/>
+                                    <circle cx="506" cy="135" r="10" fill="#ddb892" stroke="#7f5539" stroke-width="2"/>
+                                    <circle cx="470" cy="122" r="10" fill="#ddb892" stroke="#7f5539" stroke-width="2"/>
+                                    <text x="482" y="168" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff8eb">🪵 4根松木</text>
+                                </g>
+                            </svg>
+                        `
+                    },
+                    {
+                        id: 3,
+                        badge: "STAGE 03",
+                        title: "松果點心盒的季節規律",
+                        introDialogue: "「哇～暖爐好暖和！最後一步啦！桌上這個點心盒裡裝著特調松果可可，看看『四季掛畫』和『點心盒刻紋』來排列圖案吧！」",
+                        question: "依序點擊圖案按鈕，完成 4 格季節序列（❄️ ➔ 🌸 ➔ ☀️ ➔ ？）",
+                        options: [
+                            { symbol: "❄️", label: "冬雪", color: "sky" },
+                            { symbol: "🌸", label: "春櫻", color: "pink" },
+                            { symbol: "☀️", label: "夏陽", color: "amber" },
+                            { symbol: "🍂", label: "秋楓", color: "orange" }
+                        ],
+                        clues: [
+                            { id: "c3_1", spotId: "spot-painting", title: "牆上的四季循環掛畫", icon: "🖼️", detail: "畫框描繪著大自然循環：冬天(❄️) ➔ 春天(🌸) ➔ 夏天(☀️) ➔ 秋天松果(🍂)。" },
+                            { id: "c3_2", spotId: "spot-chest", title: "點心盒蓋上的刻紋", icon: "🎁", detail: "盒蓋上已經亮起三顆寶石：❄️、🌸、☀️，最後一格刻著一片秋楓與松果的形狀！" }
+                        ],
+                        hints: [
+                            "【方向引導】觀察前三個圖案「❄️（冬）➔ 🌸（春）➔ ☀️（夏）」，這是季節的順序喔！點擊掛畫確認第四個季節是什麼吧！",
+                            "【關鍵線索高亮】掛畫與點心盒已標亮！冬、春、夏之後就是秋天（🍂），第四格應該放入「🍂 秋楓」！",
+                            "【終極救援】完整順序是「❄️ ➔ 🌸 ➔ ☀️ ➔ 🍂」，依序點擊這四個按鈕就能打開點心盒囉！"
+                        ],
+                        answer: ["❄️", "🌸", "☀️", "🍂"],
+                        renderScene: () => `
+                            <svg viewBox="0 0 600 230" class="w-full h-auto block">
+                                <rect width="600" height="175" fill="#faedcd"/>
+                                <rect y="175" width="600" height="55" fill="#d4a373"/>
+                                <g id="spot-painting" class="interactive-spot" onclick="inspectClue('c3_1')">
+                                    <rect x="65" y="32" width="180" height="95" rx="10" fill="#fffaf0" stroke="#8c5a3c" stroke-width="5"/>
+                                    <text x="155" y="56" text-anchor="middle" font-size="12" font-weight="bold" fill="#7f5539">🖼️ 四季循環圖</text>
+                                    <text x="155" y="95" text-anchor="middle" font-size="22">❄️ ➔ 🌸 ➔ ☀️ ➔ 🍂</text>
+                                </g>
+                                <g id="spot-chest" class="interactive-spot" onclick="inspectClue('c3_2')">
+                                    <rect x="310" y="145" width="220" height="16" rx="4" fill="#7f5539"/>
+                                    <rect x="335" y="161" width="16" height="45" fill="#5e3a24"/>
+                                    <rect x="490" y="161" width="16" height="45" fill="#5e3a24"/>
+                                    <rect x="360" y="88" width="120" height="57" rx="10" fill="#bc6c25" stroke="#5e3a24" stroke-width="3"/>
+                                    <rect x="372" y="94" width="96" height="14" rx="4" fill="#fefae0"/>
+                                    <text x="420" y="105" text-anchor="middle" font-size="11" font-weight="bold" fill="#7f5539">❄️  🌸  ☀️  [ ? ]</text>
+                                    <text x="420" y="133" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff8eb">🎁 點擊查看寶箱</text>
+                                </g>
+                            </svg>
+                        `
+                    }
+                ]
+            },
+            B: {
+                id: 'B',
+                name: '套組 B：星空溫泉篇',
+                stages: [
+                    {
+                        id: 1,
+                        badge: "STAGE 01",
+                        title: "觀星露台的星座密碼鎖",
+                        introDialogue: "「吱吱！今晚的雪夜星空超美！快看看露台上的『觀星望遠鏡』和『石碑星象圖』，解開溫泉木屋的門鎖吧！」",
+                        question: "根據星圖顆數與石碑順序，輸入 3 位數門鎖密碼：",
+                        clues: [
+                            { id: "b1_1", spotId: "spot-telescope", title: "黃銅觀星望遠鏡", icon: "🔭", detail: "星圖紀錄著亮星數量：北極星系 7 顆、獵戶座 4 顆、天鵝座 9 顆。" },
+                            { id: "b1_2", spotId: "spot-stone", title: "露台旁的星象石碑", icon: "🗿", detail: "石碑刻著星座順序：「天鵝座 ➔ 北極星 ➔ 獵戶座」。" }
+                        ],
+                        hints: [
+                            "【方向引導】先點擊「望遠鏡」查看三個星座的星星數量，再點擊「星象石碑」確認排列順序喔！",
+                            "【關鍵線索高亮】場景中的望遠鏡與石碑已標亮！石碑順序是「天鵝(9) ➔ 北極星(7) ➔ 獵戶(4)」！",
+                            "【終極救援】密碼組合起來是「974」！也可以直接點下方按鈕讓猴丸子幫你解開門鎖！"
+                        ],
+                        answer: "974",
+                        renderScene: () => `
+                            <svg viewBox="0 0 600 230" class="w-full h-auto block">
+                                <rect width="600" height="230" fill="#1e1b4b"/>
+                                <circle cx="90" cy="40" r="2" fill="#fef08a"/><circle cx="240" cy="30" r="2.5" fill="#ffffff"/>
+                                <circle cx="380" cy="45" r="2" fill="#fef08a"/><circle cx="510" cy="28" r="3" fill="#ffffff"/>
+                                <rect y="150" width="600" height="80" fill="#e0f2fe"/>
+                                <g id="spot-telescope" class="interactive-spot" onclick="inspectClue('b1_1')">
+                                    <rect x="45" y="85" width="235" height="65" rx="14" fill="#312e81" stroke="#818cf8" stroke-width="2.5"/>
+                                    <text x="162" y="106" text-anchor="middle" font-size="12" font-weight="bold" fill="#c7d2fe">🔭 點擊查看觀星星圖</text>
+                                    <text x="162" y="132" text-anchor="middle" font-size="14" font-weight="bold" fill="#fef08a">⭐北極:7  🏹獵戶:4  🦢天鵝:9</text>
+                                </g>
+                                <g id="spot-stone" class="interactive-spot" onclick="inspectClue('b1_2')">
+                                    <rect x="350" y="75" width="200" height="85" rx="16" fill="#64748b" stroke="#cbd5e1" stroke-width="3"/>
+                                    <text x="450" y="104" text-anchor="middle" font-size="12" font-weight="bold" fill="#f8fafc">🗿 星象石碑順序</text>
+                                    <text x="450" y="134" text-anchor="middle" font-size="15" font-weight="bold" fill="#fef08a">🦢天鵝 ➔ ⭐北極 ➔ 🏹獵戶</text>
+                                </g>
+                            </svg>
+                        `
+                    },
+                    {
+                        id: 2,
+                        badge: "STAGE 02",
+                        title: "露天溫泉的黃金水溫",
+                        introDialogue: "「哇～是露天雪見溫泉！現在池水太冰啦，快看看『木桶水溫計』和『地熱溫泉管』，把水溫調到最舒服的度數吧！」",
+                        question: "調整溫泉控溫閥至黃金泡湯溫度（°C）：",
+                        clues: [
+                            { id: "b2_1", spotId: "spot-spring-cold", title: "山泉冷水木桶", icon: "🪣", detail: "目前引入的山泉水溫為 12°C，木牌寫著：「泡湯黃金溫度需再升溫 28°C」。" },
+                            { id: "b2_2", spotId: "spot-spring-hot", title: "地熱溫泉注入閥", icon: "♨️", detail: "開啟地熱溫泉管可精準增加 28°C（12 + 28 = 40°C），最適合猴丸子泡澡！" }
+                        ],
+                        hints: [
+                            "【方向引導】點擊左邊的「山泉水桶」與右邊的「地熱溫泉管」，把兩個溫度數值相加就是黃金水溫喔！",
+                            "【關鍵線索高亮】關鍵熱點已標亮！山泉水 12°C 加上地熱溫泉 28°C，剛好等於 40°C！",
+                            "【終極救援】將下方按鈕調到「40°C」按下確認即可！也可以直接請猴丸子幫你轉動水閥！"
+                        ],
+                        answer: 40,
+                        renderScene: () => `
+                            <svg viewBox="0 0 600 230" class="w-full h-auto block">
+                                <rect width="600" height="230" fill="#bae6fd"/>
+                                <ellipse cx="300" cy="175" rx="240" ry="45" fill="#38bdf8" stroke="#0284c7" stroke-width="4"/>
+                                <text x="300" y="182" text-anchor="middle" font-size="22">♨️ 露天雪見溫泉池 ♨️</text>
+                                <g id="spot-spring-cold" class="interactive-spot" onclick="inspectClue('b2_1')">
+                                    <rect x="60" y="45" width="180" height="75" rx="14" fill="#ffffff" stroke="#0284c7" stroke-width="3"/>
+                                    <text x="150" y="75" text-anchor="middle" font-size="13" font-weight="bold" fill="#0369a1">🪣 山泉冷水：12°C</text>
+                                    <text x="150" y="100" text-anchor="middle" font-size="11" font-weight="bold" fill="#64748b">點擊查看水溫標示</text>
+                                </g>
+                                <g id="spot-spring-hot" class="interactive-spot" onclick="inspectClue('b2_2')">
+                                    <rect x="360" y="45" width="180" height="75" rx="14" fill="#fff1f2" stroke="#e11d48" stroke-width="3"/>
+                                    <text x="450" y="75" text-anchor="middle" font-size="13" font-weight="bold" fill="#be123c">♨️ 地熱溫泉：+28°C</text>
+                                    <text x="450" y="100" text-anchor="middle" font-size="11" font-weight="bold" fill="#9f1239">點擊查看加熱管線</text>
+                                </g>
+                            </svg>
+                        `
+                    },
+                    {
+                        id: 3,
+                        badge: "STAGE 03",
+                        title: "月光茶點的月相規律",
+                        introDialogue: "「泡完溫泉暖呼呼！最後來解開這個月光點心盒吧，觀察『窗外月相捲軸』的月亮變化順序！」",
+                        question: "依序點擊月相圖案，完成 4 格月亮盈虧規律（🌑 ➔ 🌓 ➔ 🌕 ➔ ？）",
+                        options: [
+                            { symbol: "🌑", label: "新月", color: "sky" },
+                            { symbol: "🌓", label: "上弦月", color: "amber" },
+                            { symbol: "🌕", label: "滿月", color: "orange" },
+                            { symbol: "🌗", label: "下弦月", color: "pink" }
+                        ],
+                        clues: [
+                            { id: "b3_1", spotId: "spot-moon-scroll", title: "和室牆上的月相捲軸", icon: "📜", detail: "捲軸畫著月亮的變化週期：新月(🌑) ➔ 上弦月(🌓) ➔ 滿月(🌕) ➔ 下弦月(🌗)。" },
+                            { id: "b3_2", spotId: "spot-moon-box", title: "漆器月光點心盒", icon: "🍱", detail: "盒蓋上鑲嵌著：🌑、🌓、🌕，最後一格需要放入「下弦月(🌗)」！" }
+                        ],
+                        hints: [
+                            "【方向引導】從新月變滿月再慢慢變缺，點擊牆上的「月相捲軸」看看第四個月亮長什麼樣子吧！",
+                            "【關鍵線索高亮】捲軸與點心盒已標亮！順序是「🌑 新月 ➔ 🌓 上弦月 ➔ 🌕 滿月 ➔ 🌗 下弦月」！",
+                            "【終極救援】依序點擊「🌑 ➔ 🌓 ➔ 🌕 ➔ 🌗」就能打開月光茶點盒囉！"
+                        ],
+                        answer: ["🌑", "🌓", "🌕", "🌗"],
+                        renderScene: () => `
+                            <svg viewBox="0 0 600 230" class="w-full h-auto block">
+                                <rect width="600" height="230" fill="#fef3c7"/>
+                                <g id="spot-moon-scroll" class="interactive-spot" onclick="inspectClue('b3_1')">
+                                    <rect x="55" y="45" width="220" height="110" rx="12" fill="#1e293b" stroke="#b45309" stroke-width="4"/>
+                                    <text x="165" y="75" text-anchor="middle" font-size="12" font-weight="bold" fill="#fde68a">📜 月相變化捲軸</text>
+                                    <text x="165" y="118" text-anchor="middle" font-size="24">🌑 ➔ 🌓 ➔ 🌕 ➔ 🌗</text>
+                                </g>
+                                <g id="spot-moon-box" class="interactive-spot" onclick="inspectClue('b3_2')">
+                                    <rect x="330" y="65" width="210" height="90" rx="14" fill="#991b1b" stroke="#450a0a" stroke-width="4"/>
+                                    <text x="435" y="98" text-anchor="middle" font-size="13" font-weight="bold" fill="#fef2f2">🍱 月光茶點盒</text>
+                                    <text x="435" y="130" text-anchor="middle" font-size="16" fill="#fde047">🌑  🌓  🌕  [ ? ]</text>
+                                </g>
+                            </svg>
+                        `
+                    }
+                ]
+            },
+            C: {
+                id: 'C',
+                name: '套組 C：森林烘焙篇',
+                stages: [
+                    {
+                        id: 1,
+                        badge: "STAGE 01",
+                        title: "森林烘焙坊的食譜比例鎖",
+                        introDialogue: "「吱吱！好香的麵包味！我們要打開烘焙坊的儲藏櫃，快看看『食材量杯架』和『主廚食譜筆記』吧！」",
+                        question: "根據食材匙數與食譜順序，輸入 3 位數儲藏櫃密碼：",
+                        clues: [
+                            { id: "c_b1_1", spotId: "spot-ingredients", title: "木架上的烘焙食材", icon: "🍯", detail: "標籤寫著用量：麵粉袋 3 匙、蜂蜜罐 6 匙、堅果籃 1 匙。" },
+                            { id: "c_b1_2", spotId: "spot-recipe", title: "主廚的手寫食譜筆記", icon: "📖", detail: "投入材料順序：「堅果籃 ➔ 麵粉袋 ➔ 蜂蜜罐」。" }
+                        ],
+                        hints: [
+                            "【方向引導】點擊左邊的「食材量杯架」記下每種材料的匙數，再點擊右邊的「食譜筆記」看順序喔！",
+                            "【關鍵線索高亮】關鍵線索已標亮！食譜順序為「堅果(1) ➔ 麵粉(3) ➔ 蜂蜜(6)」！",
+                            "【終極救援】密碼就是「136」！也可以直接點下方按鈕讓猴丸子幫你解鎖儲藏櫃！"
+                        ],
+                        answer: "136",
+                        renderScene: () => `
+                            <svg viewBox="0 0 600 230" class="w-full h-auto block">
+                                <rect width="600" height="230" fill="#ffedd5"/>
+                                <g id="spot-ingredients" class="interactive-spot" onclick="inspectClue('c_b1_1')">
+                                    <rect x="45" y="55" width="245" height="110" rx="14" fill="#fffaf0" stroke="#c2410c" stroke-width="3"/>
+                                    <text x="167" y="85" text-anchor="middle" font-size="13" font-weight="bold" fill="#9a3412">🍯 點擊查看食材用量</text>
+                                    <text x="167" y="128" text-anchor="middle" font-size="16" font-weight="bold" fill="#431407">🌾麵粉:3  🍯蜂蜜:6  🌰堅果:1</text>
+                                </g>
+                                <g id="spot-recipe" class="interactive-spot" onclick="inspectClue('c_b1_2')">
+                                    <rect x="330" y="55" width="225" height="110" rx="14" fill="#fef3c7" stroke="#b45309" stroke-width="3"/>
+                                    <text x="442" y="85" text-anchor="middle" font-size="13" font-weight="bold" fill="#78350f">📖 食譜投入順序</text>
+                                    <text x="442" y="128" text-anchor="middle" font-size="16" font-weight="bold" fill="#92400e">🌰堅果 ➔ 🌾麵粉 ➔ 🍯蜂蜜</text>
+                                </g>
+                            </svg>
+                        `
+                    },
+                    {
+                        id: 2,
+                        badge: "STAGE 02",
+                        title: "酵母發酵箱的完美溫度",
+                        introDialogue: "「麵團揉好啦！要讓麵團變得胖嘟嘟的，快看看『發酵箱室溫計』和『溫水蒸氣瓶』，設定最佳發酵溫度吧！」",
+                        question: "調整發酵箱溫控器至最佳發酵度數（°C）：",
+                        clues: [
+                            { id: "c_b2_1", spotId: "spot-yeast-room", title: "發酵箱室溫計", icon: "🌡️", detail: "目前發酵箱內溫度為 15°C，貼紙提醒：「需要再升溫 15°C 才能喚醒酵母」。" },
+                            { id: "c_b2_2", spotId: "spot-yeast-steam", title: "溫水蒸氣保濕瓶", icon: "♨️", detail: "放入溫水蒸氣瓶可穩定提升 15°C（15 + 15 = 30°C），麵團會發酵得最鬆軟！" }
+                        ],
+                        hints: [
+                            "【方向引導】點擊「室溫計」與「溫水蒸氣瓶」，把原本溫度加上升溫幅度就是最佳發酵溫度喔！",
+                            "【關鍵線索高亮】場景熱點已標亮！室溫 15°C 加上蒸氣瓶提供的 15°C，目標溫度是 30°C！",
+                            "【終極救援】將下方按鈕調到「30°C」按下確認即可！也可以直接請猴丸子幫你設定溫度！"
+                        ],
+                        answer: 30,
+                        renderScene: () => `
+                            <svg viewBox="0 0 600 230" class="w-full h-auto block">
+                                <rect width="600" height="230" fill="#fef9c3"/>
+                                <g id="spot-yeast-room" class="interactive-spot" onclick="inspectClue('c_b2_1')">
+                                    <rect x="65" y="55" width="200" height="110" rx="14" fill="#ffffff" stroke="#ca8a04" stroke-width="3"/>
+                                    <text x="165" y="95" text-anchor="middle" font-size="15" font-weight="bold" fill="#854d0e">🌡️ 箱內室溫：15°C</text>
+                                    <text x="165" y="130" text-anchor="middle" font-size="12" font-weight="bold" fill="#a16207">點擊查看溫度計</text>
+                                </g>
+                                <g id="spot-yeast-steam" class="interactive-spot" onclick="inspectClue('c_b2_2')">
+                                    <rect x="335" y="55" width="200" height="110" rx="14" fill="#fff7ed" stroke="#ea580c" stroke-width="3"/>
+                                    <text x="435" y="95" text-anchor="middle" font-size="15" font-weight="bold" fill="#9a3412">♨️ 溫水蒸氣：+15°C</text>
+                                    <text x="435" y="130" text-anchor="middle" font-size="12" font-weight="bold" fill="#c2410c">點擊查看加熱說明</text>
+                                </g>
+                            </svg>
+                        `
+                    },
+                    {
+                        id: 3,
+                        badge: "STAGE 03",
+                        title: "彩虹水果塔的裝飾順序",
+                        introDialogue: "「麵包出爐香噴噴！最後來裝飾森林水果塔，看看『甜點海報』上的彩虹水果排列順序吧！」",
+                        question: "依序點擊水果按鈕，完成 4 格彩虹水果塔裝飾（🍓 ➔ 🍊 ➔ 🍋 ➔ ？）",
+                        options: [
+                            { symbol: "🍓", label: "草莓", color: "pink" },
+                            { symbol: "🍊", label: "柳橙", color: "orange" },
+                            { symbol: "🍋", label: "檸檬", color: "amber" },
+                            { symbol: "🫐", label: "藍莓", color: "sky" }
+                        ],
+                        clues: [
+                            { id: "c_b3_1", spotId: "spot-tart-poster", title: "彩虹水果塔海報", icon: "🍰", detail: "色彩順序：紅草莓(🍓) ➔ 橘柳橙(🍊) ➔ 黃檸檬(🍋) ➔ 藍紫藍莓(🫐)。" },
+                            { id: "c_b3_2", spotId: "spot-tart-box", title: "水果塔旋轉展示台", icon: "🎂", detail: "塔上已經擺好 🍓、🍊、🍋，最後一格要放上酸甜的「藍莓(🫐)」！" }
+                        ],
+                        hints: [
+                            "【方向引導】按照紅、橘、黃、藍的彩虹顏色順序，點擊海報確認第四種水果是什麼吧！",
+                            "【關鍵線索高亮】海報與展示台已標亮！順序是「🍓 草莓 ➔ 🍊 柳橙 ➔ 🍋 檸檬 ➔ 🫐 藍莓」！",
+                            "【終極救援】依序點擊「🍓 ➔ 🍊 ➔ 🍋 ➔ 🫐」就能完成超美味的彩虹水果塔囉！"
+                        ],
+                        answer: ["🍓", "🍊", "🍋", "🫐"],
+                        renderScene: () => `
+                            <svg viewBox="0 0 600 230" class="w-full h-auto block">
+                                <rect width="600" height="230" fill="#fce7f3"/>
+                                <g id="spot-tart-poster" class="interactive-spot" onclick="inspectClue('c_b3_1')">
+                                    <rect x="55" y="45" width="225" height="110" rx="14" fill="#ffffff" stroke="#db2777" stroke-width="3"/>
+                                    <text x="167" y="78" text-anchor="middle" font-size="13" font-weight="bold" fill="#9d174d">🍰 彩虹水果塔海報</text>
+                                    <text x="167" y="122" text-anchor="middle" font-size="24">🍓 ➔ 🍊 ➔ 🍋 ➔ 🫐</text>
+                                </g>
+                                <g id="spot-tart-box" class="interactive-spot" onclick="inspectClue('c_b3_2')">
+                                    <rect x="330" y="55" width="215" height="100" rx="14" fill="#fff1f2" stroke="#e11d48" stroke-width="3"/>
+                                    <text x="437" y="88" text-anchor="middle" font-size="13" font-weight="bold" fill="#be123c">🎂 水果塔裝飾台</text>
+                                    <text x="437" y="125" text-anchor="middle" font-size="18">🍓  🍊  🍋  [ ? ]</text>
+                                </g>
+                            </svg>
+                        `
+                    }
+                ]
+            }
+        };
+
+        /* ==========================================================================
+           遊戲核心狀態與控制項產生器
+           ========================================================================== */
+        let currentPackKey = 'A';
+        let activeStages = PUZZLE_PACKS.A.stages;
+        let currentStageIdx = 0;
+        let collectedClues = new Set();
+        let totalHintsUsed = 0;
+        let currentHintStage = 0;
+        let wrongAttempts = 0;
+        let currentTemp = 10;
+        let currentSeq = [];
+
+        function buildStageControlsHTML(stage) {
+            if (stage.id === 1) {
+                return `
+                    <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-3 w-full">
+                        <div class="flex items-center gap-2">
+                            <input type="number" inputmode="numeric" pattern="[0-9]*" id="input-digit-1" min="0" max="9" placeholder="?" class="w-14 h-14 text-center text-2xl font-black bg-white border-3 border-amber-600 rounded-xl focus:outline-none focus:ring-4 focus:ring-amber-300" oninput="autoTab(this, 'input-digit-2')">
+                            <input type="number" inputmode="numeric" pattern="[0-9]*" id="input-digit-2" min="0" max="9" placeholder="?" class="w-14 h-14 text-center text-2xl font-black bg-white border-3 border-amber-600 rounded-xl focus:outline-none focus:ring-4 focus:ring-amber-300" oninput="autoTab(this, 'input-digit-3')">
+                            <input type="number" inputmode="numeric" pattern="[0-9]*" id="input-digit-3" min="0" max="9" placeholder="?" class="w-14 h-14 text-center text-2xl font-black bg-white border-3 border-amber-600 rounded-xl focus:outline-none focus:ring-4 focus:ring-amber-300">
+                        </div>
+                        <button onclick="checkStage1Answer()" class="btn-cozy bg-emerald-500 hover:bg-emerald-400 text-white font-black px-5 h-14 rounded-xl border-2 border-emerald-800 w-full sm:w-auto">
+                            🔓 解鎖機關
+                        </button>
+                    </div>
+                `;
+            } else if (stage.id === 2) {
+                return `
+                    <div class="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full max-w-md">
+                        <div class="flex items-center justify-between sm:justify-center gap-3 bg-white px-4 py-2 rounded-xl border-2 border-amber-600 shadow-inner w-full sm:w-auto">
+                            <button onclick="adjustTemp(-5)" class="w-11 h-11 rounded-lg bg-sky-200 hover:bg-sky-300 font-black text-sky-900 text-lg active:scale-95 transition">-5</button>
+                            <span id="temp-display" class="w-20 text-center text-2xl font-black text-rose-600">10°C</span>
+                            <button onclick="adjustTemp(5)" class="w-11 h-11 rounded-lg bg-rose-200 hover:bg-rose-300 font-black text-rose-900 text-lg active:scale-95 transition">+5</button>
+                        </div>
+                        <button onclick="checkStage2Answer()" class="btn-cozy bg-orange-500 hover:bg-orange-400 text-white font-black px-6 py-3 rounded-xl border-2 border-orange-800 w-full sm:w-auto">
+                            ✨ 確認溫度
+                        </button>
+                    </div>
+                `;
+            } else {
+                const opts = stage.options || [];
+                const buttonsHTML = opts.map(opt => `
+                    <button onclick="selectSymbol('${opt.symbol}')" class="btn-cozy bg-${opt.color}-100 hover:bg-${opt.color}-200 border-2 border-${opt.color}-600 px-3.5 sm:px-4 py-2.5 rounded-xl text-xl sm:text-2xl flex items-center justify-center gap-1">
+                        ${opt.symbol} <span class="text-xs font-bold text-${opt.color}-900">${opt.label}</span>
+                    </button>
+                `).join('');
+                return `
+                    <div class="flex flex-col items-center gap-3 w-full">
+                        <div class="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2" id="seq-slots">
+                            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white border-3 border-amber-500 flex items-center justify-center text-xl sm:text-2xl shadow-inner font-bold" id="slot-0">?</div>
+                            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white border-3 border-amber-500 flex items-center justify-center text-xl sm:text-2xl shadow-inner font-bold" id="slot-1">?</div>
+                            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white border-3 border-amber-500 flex items-center justify-center text-xl sm:text-2xl shadow-inner font-bold" id="slot-2">?</div>
+                            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white border-3 border-amber-500 flex items-center justify-center text-xl sm:text-2xl shadow-inner font-bold" id="slot-3">?</div>
+                            <button onclick="resetSeq()" class="ml-1 sm:ml-2 text-xs font-bold bg-amber-200 hover:bg-amber-300 text-amber-900 px-3 py-2.5 rounded-lg min-h-[44px]">
+                                <i class="fa-solid fa-rotate-left"></i> 重選
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-2 sm:flex sm:flex-wrap justify-center gap-2 sm:gap-2.5 w-full sm:w-auto">${buttonsHTML}</div>
+                    </div>
+                `;
+            }
+        }
+
+        function createSnowflakes() {
+            const snowChars = ['❄️', '❅', '❆', '•'];
+            const count = 24;
+            for (let i = 0; i < count; i++) {
+                const flake = document.createElement('div');
+                flake.className = 'snowflake';
+                flake.textContent = snowChars[Math.floor(Math.random() * snowChars.length)];
+                flake.style.left = `${Math.random() * 100}vw`;
+                flake.style.fontSize = `${Math.random() * 12 + 10}px`;
+                flake.style.animationDuration = `${Math.random() * 6 + 6}s`;
+                flake.style.animationDelay = `${Math.random() * 5}s`;
+                document.body.appendChild(flake);
+            }
+        }
+
+        window.onload = function () {
+            initPWA();
+            createSnowflakes();
+            loadStage(0);
+        };
+
+        function loadStage(index) {
+            currentStageIdx = index;
+            const stage = activeStages[index];
+            currentHintStage = 0;
+            wrongAttempts = 0;
+            currentTemp = 10;
+            currentSeq = [];
+
+            const dots = document.querySelectorAll('#progress-dots span');
+            dots.forEach((dot, i) => {
+                if (i < index) {
+                    dot.className = "w-6 h-6 rounded-full bg-emerald-400 text-emerald-950 font-black text-xs flex items-center justify-center shadow";
+                    dot.innerHTML = '<i class="fa-solid fa-check"></i>';
+                } else if (i === index) {
+                    dot.className = "w-6 h-6 rounded-full bg-amber-400 text-amber-950 font-black text-xs flex items-center justify-center shadow ring-2 ring-white";
+                    dot.textContent = i + 1;
+                } else {
+                    dot.className = "w-6 h-6 rounded-full bg-amber-800/60 text-amber-200 font-bold text-xs flex items-center justify-center";
+                    dot.textContent = i + 1;
+                }
+            });
+
+            document.getElementById('stage-badge').textContent = stage.badge;
+            document.getElementById('stage-title').textContent = stage.title;
+            document.getElementById('puzzle-question').textContent = stage.question;
+            document.getElementById('scene-canvas').innerHTML = stage.renderScene();
+            document.getElementById('puzzle-controls').innerHTML = buildStageControlsHTML(stage);
+
+            document.getElementById('hint-banner').classList.add('hidden');
+            document.getElementById('hint-skip-container').classList.add('hidden');
+            document.getElementById('hint-stage-badge').textContent = "0/3";
+            document.getElementById('wrong-attempts-display').classList.add('hidden');
+
+            setMonkeyState('normal', '元氣滿滿 ✨', '❄️', stage.introDialogue);
+            updateClueNotebook();
+        }
+
+        const PET_QUOTES = [
+            "「吱吱～好舒服喔！再摸摸我的頭，我會更努力幫你想辦法的！」",
+            "「嘿嘿，我的臉頰是不是紅撲撲的？雪地裡有你陪著一點也不冷！」",
+            "「加油加油！你一定能解開這個謎題的，猴丸子最相信你了！」",
+            "「如果覺得有點難，隨時按『卡關求救』按鈕，我們一起想辦法喔！」"
+        ];
+
+        function petMonkey() {
+            playSound('pet');
+            const avatarBox = document.getElementById('monkey-avatar-box');
+            const quote = PET_QUOTES[Math.floor(Math.random() * PET_QUOTES.length)];
+            avatarBox.classList.remove('monkey-bounce', 'blush-active');
+            void avatarBox.offsetWidth;
+            avatarBox.classList.add('monkey-bounce', 'blush-active');
+            setMonkeyState('happy', '害羞臉紅 💕', '💕', quote);
+            setTimeout(() => avatarBox.classList.remove('blush-active'), 2200);
+        }
+
+        function setMonkeyState(mood, badgeText, icon, dialogueText) {
+            const avatarBox = document.getElementById('monkey-avatar-box');
+            const badge = document.getElementById('monkey-mood-badge');
+            const iconEl = document.getElementById('monkey-reaction-icon');
+            const dialogueEl = document.getElementById('monkey-dialogue');
+
+            avatarBox.classList.remove('monkey-dizzy');
+            if (mood === 'stuck') avatarBox.classList.add('monkey-dizzy');
+
+            badge.textContent = `心情：${badgeText}`;
+            iconEl.textContent = icon;
+            dialogueEl.textContent = dialogueText;
+        }
+
+        function inspectClue(clueId) {
+            const stage = activeStages[currentStageIdx];
+            const clue = stage.clues.find(c => c.id === clueId);
+            if (!clue) return;
+
+            playSound('clue');
+            const isNew = !collectedClues.has(clueId);
+            collectedClues.add(clueId);
+            updateClueNotebook();
+
+            // 顯示彈出視窗
+            const toastIcon = document.getElementById('toast-icon');
+            const toastTitle = document.getElementById('toast-title');
+            const toastDesc = document.getElementById('toast-desc');
+            const modal = document.getElementById('toast-modal');
+
+            if (toastIcon) toastIcon.textContent = clue.icon;
+            if (toastTitle) toastTitle.textContent = isNew ? `發現新線索：${clue.title}` : `重溫線索：${clue.title}`;
+            if (toastDesc) toastDesc.textContent = clue.detail;
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+
+            // 猴丸子反應
+            setMonkeyState('happy', '發現線索 💡', '💡', `「哇！你找到了『${clue.title}』！我已經幫你記在左邊的線索筆記本囉！」`);
+        }
+
+        function closeToast() {
+            playSound('click');
+            const modal = document.getElementById('toast-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function updateClueNotebook() {
+            const stage = activeStages[currentStageIdx];
+            const stageClues = stage.clues;
+            const foundInStage = stageClues.filter(c => collectedClues.has(c.id));
+
+            const counterEl = document.getElementById('clue-counter');
+            if (counterEl) {
+                counterEl.textContent = `本關 ${foundInStage.length} / ${stageClues.length}`;
+            }
+
+            const listEl = document.getElementById('clue-list');
+            if (!listEl) return;
+
+            if (foundInStage.length === 0) {
+                listEl.innerHTML = `
+                    <li class="text-amber-700/60 italic text-center py-4 sm:py-6 bg-amber-100/50 rounded-xl border border-dashed border-amber-300 text-xs sm:text-sm">
+                        還沒發現本關線索呢～<br>試著點擊場景中的可疑物件吧！
+                    </li>
+                `;
+                return;
+            }
+
+            listEl.innerHTML = foundInStage.map(c => `
+                <li class="bg-white border-2 border-amber-400 rounded-xl p-2.5 shadow-sm transition-all">
+                    <div class="font-black text-amber-900 text-xs sm:text-sm flex items-center gap-1.5 mb-1">
+                        <span>${c.icon}</span>
+                        <span>${c.title}</span>
+                    </div>
+                    <p class="text-xs text-amber-800 leading-relaxed">${c.detail}</p>
+                </li>
+            `).join('');
+        }
+
+        function triggerUnstuckHelp() {
+            playSound('hint');
+            const stage = activeStages[currentStageIdx];
+
+            if (currentHintStage < 3) {
+                currentHintStage++;
+                totalHintsUsed++;
+            }
+
+            document.getElementById('hint-stage-badge').textContent = `${currentHintStage}/3`;
+            const banner = document.getElementById('hint-banner');
+            const levelTitle = document.getElementById('hint-level-title');
+            const hintText = document.getElementById('hint-text');
+            const skipContainer = document.getElementById('hint-skip-container');
+
+            banner.classList.remove('hidden');
+            hintText.textContent = stage.hints[currentHintStage - 1];
+
+            if (currentHintStage === 1) {
+                levelTitle.textContent = "階段一：方向引導";
+                setMonkeyState('stuck', '動腦思考中 🌀', '🤔', "「唔唔～讓我轉轉腦袋瓜！先照著提示的方向觀察看看吧！」");
+            } else if (currentHintStage === 2) {
+                levelTitle.textContent = "階段二：關鍵線索高亮";
+                // 將場景中的關鍵物件加上發光高亮特效，並同步將線索收錄至筆記本
+                stage.clues.forEach(c => {
+                    const spot = document.getElementById(c.spotId);
+                    if (spot) spot.classList.add('clue-highlight');
+                    collectedClues.add(c.id);
+                });
+                updateClueNotebook();
+                setMonkeyState('stuck', '全力支援中 ✨', '🔦', "「我用雪地手電筒把關鍵線索照亮，也幫你抄進線索筆記本囉！」");
+            } else if (currentHintStage === 3) {
+                levelTitle.textContent = "階段三：終極救援（含直接解開選項）";
+                skipContainer.classList.remove('hidden');
+                setMonkeyState('stuck', '救援模式啟動 🦸', '🦸', "「沒問題！答案就在提示裡，或者直接按按鈕讓我幫你打開機關！」");
+            }
+        }
+
+        function handleWrongAttempt(customMsg) {
+            playSound('wrong');
+            wrongAttempts++;
+            const wrongDisplay = document.getElementById('wrong-attempts-display');
+            wrongDisplay.classList.remove('hidden');
+            document.getElementById('wrong-count').textContent = wrongAttempts;
+
+            if (wrongAttempts >= 2 && currentHintStage === 0) {
+                setMonkeyState('stuck', '發現你卡關囉 💦', '💦', "「吱吱！好像有點卡住了呢～我自動幫你開啟『階段一提示』囉！」");
+                setTimeout(() => triggerUnstuckHelp(), 400);
+            } else {
+                setMonkeyState('stuck', '差一點點！💪', '💦', customMsg || "「哎呀，機關沒有反應耶！再對照一下線索筆記本試試看！」");
+            }
+        }
+
+        function monkeyAutoSolve() {
+            const stage = activeStages[currentStageIdx];
+            if (stage.id === 1) {
+                const digits = String(stage.answer).split('');
+                document.getElementById('input-digit-1').value = digits[0];
+                document.getElementById('input-digit-2').value = digits[1];
+                document.getElementById('input-digit-3').value = digits[2];
+                checkStage1Answer();
+            } else if (stage.id === 2) {
+                currentTemp = Number(stage.answer);
+                document.getElementById('temp-display').textContent = `${currentTemp}°C`;
+                checkStage2Answer();
+            } else if (stage.id === 3) {
+                currentSeq = [...stage.answer];
+                updateSeqUI();
+                setTimeout(() => stageClear(), 500);
+            }
+        }
+
+        function autoTab(current, nextId) {
+            if (current.value.length >= 1) {
+                current.value = current.value.slice(0, 1);
+                const nextEl = document.getElementById(nextId);
+                if (nextEl) nextEl.focus();
+            }
+        }
+
+        function checkStage1Answer() {
+            const d1 = document.getElementById('input-digit-1').value;
+            const d2 = document.getElementById('input-digit-2').value;
+            const d3 = document.getElementById('input-digit-3').value;
+            const code = `${d1}${d2}${d3}`;
+            if (code === activeStages[0].answer) stageClear();
+            else handleWrongAttempt("「咔噠...機關沒有打開！提示：點擊場景物件確認數字與先後順序喔！」");
+        }
+
+        function adjustTemp(delta) {
+            playSound('click');
+            currentTemp = Math.max(0, Math.min(45, currentTemp + delta));
+            document.getElementById('temp-display').textContent = `${currentTemp}°C`;
+        }
+
+        function checkStage2Answer() {
+            const target = Number(activeStages[1].answer);
+            if (currentTemp === target) stageClear();
+            else if (currentTemp < target) handleWrongAttempt(`「${currentTemp}°C 還不夠暖和喔！試著再把溫度調高一點吧！」`);
+            else handleWrongAttempt(`「哇哇！${currentTemp}°C 太高啦，猴丸子的毛都要捲起來了！調低一點試試！」`);
+        }
+
+        function selectSymbol(symbol) {
+            if (currentSeq.length >= 4) return;
+            playSound('click');
+            currentSeq.push(symbol);
+            updateSeqUI();
+
+            if (currentSeq.length === 4) {
+                const isMatch = currentSeq.every((val, idx) => val === activeStages[2].answer[idx]);
+                if (isMatch) setTimeout(() => stageClear(), 300);
+                else {
+                    setTimeout(() => {
+                        handleWrongAttempt("「點心盒震動了一下又鎖住了！看看牆上線索的 4 格排列順序吧！」");
+                        resetSeq();
+                    }, 350);
+                }
+            }
+        }
+
+        function resetSeq() {
+            currentSeq = [];
+            updateSeqUI();
+        }
+
+        function updateSeqUI() {
+            for (let i = 0; i < 4; i++) {
+                const slot = document.getElementById(`slot-${i}`);
+                if (slot) slot.textContent = currentSeq[i] || "?";
+            }
+        }
+
+        function stageClear() {
+            playSound('success');
+            if (typeof confetti === 'function') confetti({ particleCount: 55, spread: 60, origin: { y: 0.7 } });
+
+            if (currentStageIdx < activeStages.length - 1) {
+                setMonkeyState('happy', '太神啦！過關 🎉', '🎉', "「吱吱！機關解開了！我們快前往下一個挑戰吧！」");
+                setTimeout(() => loadStage(currentStageIdx + 1), 1100);
+            } else {
+                const dots = document.querySelectorAll('#progress-dots span');
+                dots[2].className = "w-6 h-6 rounded-full bg-emerald-400 text-emerald-950 font-black text-xs flex items-center justify-center shadow";
+                dots[2].innerHTML = '<i class="fa-solid fa-check"></i>';
+
+                document.getElementById('game-stage-container').classList.add('hidden');
+                const victoryScreen = document.getElementById('victory-screen');
+                victoryScreen.classList.remove('hidden');
+
+                document.getElementById('stat-clues').textContent = `${collectedClues.size} / 6`;
+                document.getElementById('stat-hints').textContent = `${totalHintsUsed} 次`;
+
+                setMonkeyState('happy', '幸福滿點 🥰', '🍫', "「萬歲！！熱可可和松果餅乾都準備好了，謝謝你陪我一起冒險！」");
+                if (typeof confetti === 'function') confetti({ particleCount: 140, spread: 90, origin: { y: 0.6 } });
+            }
+        }
+
+        function openSetupModal() {
+            playSound('click');
+            const modal = document.getElementById('setup-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeSetupModal() {
+            playSound('click');
+            const modal = document.getElementById('setup-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function switchSetupTab(tabName) {
+            playSound('click');
+            const tabPreset = document.getElementById('tab-preset');
+            const tabCustom = document.getElementById('tab-custom');
+            const panelPreset = document.getElementById('panel-preset');
+            const panelCustom = document.getElementById('panel-custom');
+
+            if (tabName === 'preset') {
+                tabPreset.className = "flex-1 py-2 px-3 rounded-lg font-black text-sm bg-amber-500 text-amber-950 shadow transition";
+                tabCustom.className = "flex-1 py-2 px-3 rounded-lg font-black text-sm text-amber-800 hover:bg-amber-200/70 transition";
+                panelPreset.classList.remove('hidden');
+                panelCustom.classList.add('hidden');
+            } else {
+                tabCustom.className = "flex-1 py-2 px-3 rounded-lg font-black text-sm bg-amber-500 text-amber-950 shadow transition";
+                tabPreset.className = "flex-1 py-2 px-3 rounded-lg font-black text-sm text-amber-800 hover:bg-amber-200/70 transition";
+                panelCustom.classList.remove('hidden');
+                panelPreset.classList.add('hidden');
+            }
+        }
+
+        function quickRandomRestart() { startWithPreset('random'); }
+
+        function startWithPreset(packKey) {
+            playSound('clue');
+            let selectedKey = packKey;
+            if (packKey === 'random') {
+                const keys = Object.keys(PUZZLE_PACKS);
+                const available = keys.filter(k => k !== currentPackKey);
+                selectedKey = available[Math.floor(Math.random() * available.length)];
+            }
+            const pack = PUZZLE_PACKS[selectedKey];
+            currentPackKey = selectedKey;
+            activeStages = pack.stages;
+            closeSetupModal();
+            resetGameStateAndStart(pack.name);
+        }
+
+        function applyCustomPuzzle() {
+            const codeRaw = document.getElementById('custom-code').value.trim();
+            if (!/^\d{3}$/.test(codeRaw)) {
+                document.getElementById('custom-code').focus();
+                return;
+            }
+            const codeHint = document.getElementById('custom-code-hint').value.trim() || `密碼提示線索：${codeRaw}`;
+            const targetTemp = Number(document.getElementById('custom-temp').value);
+            const tempHint = document.getElementById('custom-temp-hint').value.trim() || `目標溫度請設定為 ${targetTemp}°C！`;
+            const seqArr = [
+                document.getElementById('custom-seq-0').value,
+                document.getElementById('custom-seq-1').value,
+                document.getElementById('custom-seq-2').value,
+                document.getElementById('custom-seq-3').value
+            ];
+
+            playSound('clue');
+            currentPackKey = 'CUSTOM';
+            activeStages = [
+                {
+                    id: 1,
+                    badge: "STAGE 01",
+                    title: "自訂挑戰：神秘密碼鎖",
+                    introDialogue: "「吱吱！歡迎來到專屬自訂關卡！點擊場景中的『神秘紙條』和『密碼提示板』看看出題者留下的線索吧！」",
+                    question: "根據線索提示，輸入 3 位數密碼：",
+                    clues: [
+                        { id: "cust_1_1", spotId: "spot-cust-note", title: "出題者的秘密紙條", icon: "📝", detail: codeHint },
+                        { id: "cust_1_2", spotId: "spot-cust-lock", title: "密碼鎖背面刻字", icon: "🔐", detail: `這組密碼由 3 個數字組成（提示：${codeHint}）。` }
+                    ],
+                    hints: [
+                        `【方向引導】點擊場景中的紙條查看提示：「${codeHint}」。`,
+                        `【關鍵線索高亮】場景中的紙條已標亮！仔細核對「${codeHint}」中的三個數字！`,
+                        `【終極救援】正確密碼是「${codeRaw}」！也可以直接點下方按鈕讓猴丸子幫你解開！`
+                    ],
+                    answer: codeRaw,
+                    renderScene: () => `
+                        <svg viewBox="0 0 600 230" class="w-full h-auto block">
+                            <rect width="600" height="230" fill="#e0e7ff"/>
+                            <g id="spot-cust-note" class="interactive-spot" onclick="inspectClue('cust_1_1')">
+                                <rect x="55" y="55" width="230" height="110" rx="14" fill="#ffffff" stroke="#4f46e5" stroke-width="3"/>
+                                <text x="170" y="92" text-anchor="middle" font-size="14" font-weight="bold" fill="#3730a3">📝 出題者秘密紙條</text>
+                                <text x="170" y="128" text-anchor="middle" font-size="12" font-weight="bold" fill="#4338ca">點擊查看數字線索</text>
+                            </g>
+                            <g id="spot-cust-lock" class="interactive-spot" onclick="inspectClue('cust_1_2')">
+                                <rect x="325" y="55" width="220" height="110" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+                                <text x="435" y="92" text-anchor="middle" font-size="14" font-weight="bold" fill="#92400e">🔐 機關密碼提示板</text>
+                                <text x="435" y="128" text-anchor="middle" font-size="13" font-weight="bold" fill="#b45309">[ ? ] - [ ? ] - [ ? ]</text>
+                            </g>
+                        </svg>
+                    `
+                },
+                {
+                    id: 2,
+                    badge: "STAGE 02",
+                    title: "自訂挑戰：溫控裝置調整",
+                    introDialogue: "「第二關是溫度調節挑戰！快點擊『溫度指示牌』查看需要調整到幾度吧！」",
+                    question: "調整溫控旋鈕至正確度數（°C）：",
+                    clues: [
+                        { id: "cust_2_1", spotId: "spot-cust-temp1", title: "溫控說明牌", icon: "🌡️", detail: tempHint },
+                        { id: "cust_2_2", spotId: "spot-cust-temp2", title: "安全閥標記", icon: "⚙️", detail: `將下方按鈕加減調整至 ${targetTemp}°C 即可啟動機關。` }
+                    ],
+                    hints: [
+                        `【方向引導】點擊場景裡的溫度指示牌查看提示：「${tempHint}」。`,
+                        `【關鍵線索高亮】線索已標亮！計算結果目標溫度為 ${targetTemp}°C！`,
+                        `【終極救援】將下方按鈕調到「${targetTemp}°C」再按下確認即可！`
+                    ],
+                    answer: targetTemp,
+                    renderScene: () => `
+                        <svg viewBox="0 0 600 230" class="w-full h-auto block">
+                            <rect width="600" height="230" fill="#ffedd5"/>
+                            <g id="spot-cust-temp1" class="interactive-spot" onclick="inspectClue('cust_2_1')">
+                                <rect x="65" y="55" width="215" height="110" rx="14" fill="#ffffff" stroke="#ea580c" stroke-width="3"/>
+                                <text x="172" y="95" text-anchor="middle" font-size="14" font-weight="bold" fill="#9a3412">🌡️ 溫控說明牌</text>
+                                <text x="172" y="128" text-anchor="middle" font-size="12" font-weight="bold" fill="#c2410c">點擊查看目標溫度線索</text>
+                            </g>
+                            <g id="spot-cust-temp2" class="interactive-spot" onclick="inspectClue('cust_2_2')">
+                                <rect x="320" y="55" width="215" height="110" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="3"/>
+                                <text x="427" y="95" text-anchor="middle" font-size="14" font-weight="bold" fill="#991b1b">⚙️ 溫控安全閥</text>
+                                <text x="427" y="128" text-anchor="middle" font-size="12" font-weight="bold" fill="#b91c1c">點擊確認操作方式</text>
+                            </g>
+                        </svg>
+                    `
+                },
+                {
+                    id: 3,
+                    badge: "STAGE 03",
+                    title: "自訂挑戰：水果圖案密碼盒",
+                    introDialogue: "「最後一關囉！點擊牆上的『水果食譜掛畫』，看看這四種水果的正確排列順序吧！」",
+                    question: "依序點擊水果按鈕，完成 4 格水果圖案序列：",
+                    options: [
+                        { symbol: "🍎", label: "蘋果", color: "pink" },
+                        { symbol: "🍌", label: "香蕉", color: "amber" },
+                        { symbol: "🍇", label: "葡萄", color: "sky" },
+                        { symbol: "🍑", label: "水蜜桃", color: "orange" }
+                    ],
+                    clues: [
+                        { id: "cust_3_1", spotId: "spot-cust-seq1", title: "水果排列掛畫", icon: "🖼️", detail: `正確順序為：${seqArr.join(' ➔ ')}。` },
+                        { id: "cust_3_2", spotId: "spot-cust-seq2", title: "點心盒刻紋", icon: "🎁", detail: `依照 ${seqArr.join('、')} 的順序依序點擊按鈕即可開啟！` }
+                    ],
+                    hints: [
+                        "【方向引導】點擊左邊的「水果排列掛畫」就能看到完整四格順序喔！",
+                        `【關鍵線索高亮】掛畫已標亮！順序是「${seqArr.join(' ➔ ')}」！`,
+                        `【終極救援】依序點擊「${seqArr.join(' ➔ ')}」就能通關囉！`
+                    ],
+                    answer: seqArr,
+                    renderScene: () => `
+                        <svg viewBox="0 0 600 230" class="w-full h-auto block">
+                            <rect width="600" height="230" fill="#dcfce7"/>
+                            <g id="spot-cust-seq1" class="interactive-spot" onclick="inspectClue('cust_3_1')">
+                                <rect x="55" y="45" width="230" height="115" rx="14" fill="#ffffff" stroke="#16a34a" stroke-width="3"/>
+                                <text x="170" y="78" text-anchor="middle" font-size="13" font-weight="bold" fill="#166534">🖼️ 水果排列掛畫</text>
+                                <text x="170" y="122" text-anchor="middle" font-size="22">${seqArr.join(' ➔ ')}</text>
+                            </g>
+                            <g id="spot-cust-seq2" class="interactive-spot" onclick="inspectClue('cust_3_2')">
+                                <rect x="325" y="55" width="220" height="100" rx="14" fill="#fefce8" stroke="#ca8a04" stroke-width="3"/>
+                                <text x="435" y="92" text-anchor="middle" font-size="14" font-weight="bold" fill="#854d0e">🎁 專屬點心寶箱</text>
+                                <text x="435" y="125" text-anchor="middle" font-size="15" font-weight="bold" fill="#a16207">[ ? ] - [ ? ] - [ ? ] - [ ? ]</text>
+                            </g>
+                        </svg>
+                    `
+                }
+            ];
+
+            closeSetupModal();
+            resetGameStateAndStart("🛠️ 自訂專屬題組");
+        }
+
+        function resetGameStateAndStart(themeLabel) {
+            collectedClues.clear();
+            totalHintsUsed = 0;
+            document.getElementById('current-theme-tag').textContent = themeLabel;
+            document.getElementById('victory-screen').classList.add('hidden');
+            document.getElementById('game-stage-container').classList.remove('hidden');
+
+            const banner = document.getElementById('new-theme-banner');
+            document.getElementById('new-theme-banner-text').textContent = `✨ 已為你切換全新謎題：【${themeLabel}】！`;
+            banner.classList.remove('hidden');
+            loadStage(0);
+        }
+    </script>
+</body>
+</html>
